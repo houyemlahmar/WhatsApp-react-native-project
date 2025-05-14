@@ -33,6 +33,7 @@ export default function Home(props) {
       <Tab.Screen
         name="Forums"
         component={Forums}
+        initialParams={{ currentUserId }}
         options={{
           tabBarLabel: 'Forums',
           tabBarIcon: ({ color }) => (

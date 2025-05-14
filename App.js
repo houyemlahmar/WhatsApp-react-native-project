@@ -8,6 +8,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Settings from "./Screens/Home/Settings";
 import Chats from "./Screens/Chats";
 import MediaViewer from "./Screens/Home/MediaViewer";
+import VideoCallScreen from "./Screens/VideoCallScreen";
+import GroupChat from "./Screens/GroupChat";
 
 const Stack = createNativeStackNavigator();
 
@@ -27,6 +29,7 @@ export default function App() {
         <Stack.Screen name="Chat" component={Chats} options={{headerStyle: { backgroundColor: '#E6E697' }, }}></Stack.Screen>
         <Stack.Screen name="MediaViewer" component={MediaViewer} options={{headerTitle: "Media", headerStyle: { backgroundColor: '#000' }, }}></Stack.Screen>
         <Stack.Screen name="VideoCallScreen" component={VideoCallScreen} />
+        <Stack.Screen name="GroupChat" component={GroupChat} options={{headerStyle: { backgroundColor: '#E6E697' }, }} />
         <Stack.Screen name="Home" component={Home} options={{headerStyle: { backgroundColor: '#E6E697' }, }}></Stack.Screen>
         <Stack.Screen name="Settings" component={Settings} options={{headerStyle: { backgroundColor: '#E6E697' }, }}></Stack.Screen>
       </Stack.Navigator>
