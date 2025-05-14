@@ -12,11 +12,15 @@ import {
   Keyboard,
   TouchableWithoutFeedback,
   Image,
+  Modal,
+  Alert,
+  Linking,
 } from "react-native";
 import firebase from "../Config";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
+import * as DocumentPicker from "expo-document-picker";
 import * as Location from "expo-location";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 
 const database = firebase.database();
@@ -38,11 +42,14 @@ export default function Chats(props) {
   const [istyping, setIstyping] = useState(false);
   const [selectedMessageId, setSelectedMessageId] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
-  
+  const [lastSeenMessage, setLastSeenMessage] = useState(null);
+
   const [secondUserPseudo, setSecondUserPseudo] = useState("");
   const [secondUserNumero, setSecondUserNumero] = useState("");
   const [secondUserImage, setSecondUserImage] = useState("");
   const [secondUserConnected, setSecondUserConnected] = useState(false);
+
+  const [showMenu, setShowMenu] = useState(false);
 
   
 useEffect(() => {
@@ -83,45 +90,105 @@ useEffect(() => {
         <View>
           <Text style={{ fontSize: 16, fontWeight: "bold" }}>{secondUserPseudo}</Text>
           <Text style={{ fontSize: 14, color: "#555" }}>{secondUserNumero}</Text>
+          {istyping && (
+            <Text style={{ fontSize: 13, color: "#4CAF50" }}>is typing ...</Text>
+          )}        
         </View>
         <View
           style={{
             width: 10,
             height: 10,
             borderRadius: 5,
-            backgroundColor: secondUserConnected ? "#4CAF50" : "red",
+            backgroundColor: secondUserConnected ? "#4CAF50" : "#C72C48",
             marginLeft: 10,
           }}
         />
+      {/* Phone icon */}
+        <TouchableOpacity
+          style={{ marginLeft: 53 }}
+          onPress={() => {
+            // Open phone dialer
+            Linking.openURL(`tel:${secondUserNumero}`);
+          }}
+        >
+          <Icon name="phone" size={24} color="#555" />
+        </TouchableOpacity>
+        {/* Video call icon */}
+        <TouchableOpacity
+          style={{ marginLeft: 20 }}
+          onPress={() => {
+            // Navigate to your video call screen (replace with your logic)
+            props.navigation.navigate("VideoCallScreen", { numero: secondUserNumero });
+          }}
+        >
+          <Icon name="videocam" size={24} color="#555" />
+        </TouchableOpacity>
+        {/* 3-dots menu */}
+        <TouchableOpacity style={{ marginLeft: 15 }} onPress={() => setShowMenu(true)}>
+          <Icon name="more-vert" size={24} color="#333" />
+        </TouchableOpacity>
       </View>
-    ),
+      ),
   });
 }, [secondUserPseudo, secondUserNumero, secondUserImage, secondUserConnected]);
 
+  // Delete all messages in the discussion
+    const handleDeleteDiscussion = () => {
+      Alert.alert(
+        "Delete Discussion",
+        "Are you sure you want to delete all messages in this discussion?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              await ref_messages.remove();
+              setShowMenu(false);
+            },
+          },
+        ]
+      );
+    };
+
+    // View all media sent in the discussion
+  const handleViewMedia = () => {
+    setShowMenu(false);
+    // Navigate to a MediaViewer screen or show a modal with media
+    props.navigation.navigate("MediaViewer", {
+      messages: messages.filter(
+        (msg) => msg.mediaType === "image" || msg.mediaType === "video" || msg.mediaType === "file"
+      ),
+    });
+  };
+  
   useEffect(() => {
     if (!currentUserId || !secondId) return;
 
     const handleMessageUpdate = (snapshot) => {
       const updatedMessages = [];
+      let lastSeenMessageTemp = null;
       snapshot.forEach((un_msg) => {
         const msgData = un_msg.val();
         const msgKey = un_msg.key;
 
-        // Si le message est destiné à l'utilisateur actuel et non encore vu
+        // If the message is received by the current user and is not seen yet
         if (msgData.receiver === currentUserId && !msgData.seen) {
-          const ref_msg = ref_messages.child(msgKey);
-          ref_msg.update({
-            seen: true,
-            seenTime: Date.now(),
-          });
+          lastSeenMessageTemp = null; // A new message is received, reset the last seen message
+        }
+
+        // If the message is sent by the current user and is seen
+        if (msgData.sender === currentUserId && msgData.seen) {
+          lastSeenMessageTemp = { ...msgData, key: msgKey };
         }
 
         // Handle reactions if present
         const reactions = msgData.reactions ? Object.values(msgData.reactions) : [];
         updatedMessages.push({ ...msgData, key: msgKey, reactions });
       });
-
       setMessages(updatedMessages);
+      setLastSeenMessage(lastSeenMessageTemp);
+    console.log("Loaded messages:", updatedMessages);
 
       setTimeout(() => {
         if (flatListRef.current) {
@@ -157,10 +224,6 @@ useEffect(() => {
     });
   };
 
-
-
-
-
   const sendMessage = () => {
     if (message.trim() === "") return;
 
@@ -188,7 +251,7 @@ useEffect(() => {
         receiver: secondId,
         seen: false,
         seenTime: null,
-        modified: false, // New messages are not modified by default
+        modified: false, 
       });
     }
 
@@ -272,17 +335,26 @@ useEffect(() => {
     }
   };
 
-  // Pick a file from the device
   const pickFile = async () => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: "*/*",
-      copyToCacheDirectory: true,
-    });
+  const result = await DocumentPicker.getDocumentAsync({
+    type: [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "*/*"
+    ],
+    copyToCacheDirectory: true,
+  });
 
-    if (result.type !== "cancel") {
-      sendMedia(result.uri, "file");
-    }
-  };
+  if (result.type !== "cancel") {
+    // You can also save the file name and mimeType if needed
+    sendMedia(result.uri, "file", result.name, result.mimeType);
+  }
+};
 
   // Send location
   const sendLocation = async () => {
@@ -337,44 +409,50 @@ const renderMessageItem = ({ item }) => {
   const userReaction = item.reactions.find((reaction) => reaction.user === currentUserId);
 
   const renderMedia = () => {
-    if (item.mediaType === "image") {
-      return (
-        <TouchableOpacity
-          onPress={() => props.navigation.navigate("MediaViewer", { uri: item.media, type: "image" })}
-        >
+  if (item.mediaType === "image" || item.mediaType === "video" || item.mediaType === "file") {
+    const mediaMessages = messages.filter(
+      (msg) =>
+        msg.mediaType === "image" ||
+        msg.mediaType === "video" ||
+        msg.mediaType === "file"
+    );
+    return (
+      <TouchableOpacity
+        onPress={() =>
+          props.navigation.navigate("MediaViewer", {
+            messages: mediaMessages,
+            selectedKey: item.key, 
+          })
+        }
+      >
+        {item.mediaType === "image" ? (
           <Image source={{ uri: item.media }} style={styles.mediaImage} />
-        </TouchableOpacity>
-      );
-    } else if (item.mediaType === "video") {
-      return (
-        <TouchableOpacity
-          onPress={() => props.navigation.navigate("MediaViewer", { uri: item.media, type: "video" })}
-        >
+        ) : item.mediaType === "video" ? (
           <Text style={styles.mediaText}>🎥 Video</Text>
-        </TouchableOpacity>
-      );
-    } else if (item.mediaType === "file") {
-      return (
-        <TouchableOpacity
-          onPress={() => props.navigation.navigate("MediaViewer", { uri: item.media, type: "file" })}
-        >
-          <Text style={styles.mediaText}>📂 File</Text>
-        </TouchableOpacity>
-      );
-    } else if (item.location) {
-      const { latitude, longitude } = item.location;
-      return (
-        <TouchableOpacity
-          onPress={() =>
-            props.navigation.navigate("MediaViewer", { uri: `${latitude},${longitude}`, type: "location" })
-          }
-        >
-          <Text style={styles.mediaText}>📍 Location</Text>
-        </TouchableOpacity>
-      );
-    }
-    return null;
-  };
+        ) : (
+          <Text style={styles.mediaText}>
+              📂 {item.fileName ? item.fileName : "File"}
+            </Text>        
+        )}
+      </TouchableOpacity>
+    );
+  } else if (item.location) {
+    const { latitude, longitude } = item.location;
+    return (
+      <TouchableOpacity
+        onPress={() =>
+          props.navigation.navigate("MediaViewer", {
+            uri: `${latitude},${longitude}`,
+            type: "location",
+          })
+        }
+      >
+        <Text style={styles.mediaText}>📍 Location</Text>
+      </TouchableOpacity>
+    );
+  }
+  return null;
+};
 
 
   return (
@@ -383,24 +461,7 @@ const renderMessageItem = ({ item }) => {
         styles.messageContainer,
         isCurrentUser ? styles.sentMessageContainer : styles.receivedMessageContainer,
       ]}
-    >
-      <TouchableOpacity onPress={() => handlePressMessage(item.key)}>
-        <View style={[styles.messageBubble, isCurrentUser ? styles.fromMe : styles.fromOther]}>
-          {item.body ? <Text style={styles.messageText}>{item.body}</Text> : null}
-          {renderMedia()}
-          {userReaction && (
-            <View
-              style={[
-                styles.reactionBubble,
-                isCurrentUser ? styles.reactionFromMe : styles.reactionFromOther,
-              ]}
-            >
-              <Text style={styles.reactionEmoji}>{userReaction.emoji}</Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-
+      >
       {isSelected && (
         <Text style={styles.messageTime}>{formatDate(item.time)}</Text>
       )}
@@ -416,6 +477,36 @@ const renderMessageItem = ({ item }) => {
         </View>
       )}
 
+      <TouchableOpacity onPress={() => handlePressMessage(item.key)}>
+        <View style={[styles.messageBubble, isCurrentUser ? styles.fromMe : styles.fromOther]}>
+          <Text
+            style={[
+              styles.messageText,
+              !isCurrentUser && styles.messageTextFromOther,]}>
+                {item.body}
+          </Text>
+          {renderMedia()}
+          {userReaction && (
+            <View
+              style={[
+                styles.reactionBubble,
+                isCurrentUser ? styles.reactionFromMe : styles.reactionFromOther,
+              ]}
+            >
+              <Text style={styles.reactionEmoji}>{userReaction.emoji}</Text>
+            </View>
+          )}
+          {/* "Seen at" - Displayed only for the last seen message or the selected message */}
+        {isCurrentUser && item.seen && item.seenTime && (
+        (isSelected || (lastSeenMessage?.key === item.key && !messages.some((msg) => msg.receiver === currentUserId && !msg.seen))) && (
+          <Text style={styles.seenText}>
+            Seen at {formatDate(item.seenTime)}
+          </Text>
+        )
+      )}
+        </View>
+      </TouchableOpacity>
+      
       {!isCurrentUser && isSelected && (
         <View style={styles.emojiContainer}>
           {["❤️", "👍", "😂", "😡", "😢"].map((emoji) => (
@@ -429,6 +520,48 @@ const renderMessageItem = ({ item }) => {
       {item.modified && (
         <Text style={styles.modifiedText}>Edited</Text>
       )}
+      <Modal
+        visible={showMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMenu(false)}
+      >
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.2)",
+            justifyContent: "flex-start",
+            alignItems: "flex-end",
+          }}
+          activeOpacity={1}
+          onPressOut={() => setShowMenu(false)}
+        >
+          <View
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 8,
+              marginTop: 50,
+              marginRight: 10,
+              paddingVertical: 8,
+              width: 200,
+              elevation: 5,
+            }}
+          >
+            <TouchableOpacity
+              style={{ padding: 15 }}
+              onPress={handleDeleteDiscussion}
+            >
+              <Text style={{ color: "#C72C48", fontWeight: "bold" }}>Delete discussion</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ padding: 15 }}
+              onPress={handleViewMedia}
+            >
+              <Text style={{ color: "#4CAF50", fontWeight: "bold" }}>View media sent</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 };
@@ -466,22 +599,25 @@ return (
             <TouchableOpacity onPress={sendLocation}>
               <Text style={styles.icon}>📍</Text>
             </TouchableOpacity>
-
+          
             <TextInput
+              onFocus={() => {
+                ref_unediscussion.child(currentUserId + "istyping").set(true);
+              }}
+              onBlur={() => {
+                ref_unediscussion.child(currentUserId + "istyping").set(false);
+              }}            
               value={message}
               onChangeText={setMessage}
               style={styles.input}
               placeholder="Type your message..."
+              placeholderTextColor="#999"
             />
-
             <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
-              <Text style={styles.sendButtonText}>
-                {editingMessage ? "Update" : "Send"}
-              </Text>
+              <Icon name={editingMessage ? "edit" : "send"} style={styles.sendButtonIcon} />
             </TouchableOpacity>
           </View>
 
-          {istyping && <Text style={styles.typingIndicator}>is typing ...</Text>}
         </ImageBackground>
       </View>
     </TouchableWithoutFeedback>
@@ -494,9 +630,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#f7f7f7",
     borderBottomWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#ddd",
   },
   avatar: {
     width: 50,
@@ -507,10 +643,11 @@ const styles = StyleSheet.create({
   headerPseudo: {
     fontSize: 18,
     fontWeight: "bold",
+    color: "#333",
   },
   headerNumero: {
     fontSize: 14,
-    color: "#555",
+    color: "#777",
   },
   messageList: {
     padding: 10,
@@ -518,74 +655,92 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   messageContainer: {
-    marginBottom: 10, 
+    marginBottom: 10,
   },
   sentMessageContainer: {
-    justifyContent: "flex-end",
+    alignItems: "flex-end",
   },
   receivedMessageContainer: {
-    justifyContent: "flex-start",
+    alignItems: "flex-start",
   },
   messageBubble: {
-    padding: 10,
-    borderRadius: 8,
-    maxWidth: "70%",
+    padding: 12,
+    borderRadius: 20,
+    maxWidth: "75%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2, 
   },
   fromMe: {
-    backgroundColor: "#386F48",
+    backgroundColor: "#4CAF50",
     alignSelf: "flex-end",
+    borderBottomRightRadius: 0,
   },
   fromOther: {
-    backgroundColor: "#000",
+    backgroundColor: "#f0f0f0",
     alignSelf: "flex-start",
+    borderBottomLeftRadius: 0,
   },
   messageText: {
     color: "#fff",
     fontSize: 16,
+    lineHeight: 22,
+  },
+  messageTextFromOther: {
+    color: "#333",
   },
   messageTime: {
-    color: "#386F48",
-    fontSize: 12,
-    textAlign: "center",
-    marginBottom: 2,
-  },
-  seenContainer: {
-    alignSelf: "flex-end",
-    paddingHorizontal: 10,
+    fontSize: 13,
+    color: "#999",
+    marginTop: 5,
+    alignSelf: "center",
   },
   seenText: {
-    fontSize: 10,
-    color: "#386F48",
+    fontSize: 12,
+    color: "#4CAF50",
+    marginTop: 5,
+    alignSelf: "flex-end",
   },
   inputContainer: {
     flexDirection: "row",
+    alignItems: "center",
     padding: 10,
     borderTopWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#ddd",
     backgroundColor: "transparent",
   },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#ddd",
     borderRadius: 25,
     paddingHorizontal: 15,
-    backgroundColor: "white",
+    paddingVertical: 8,
+    backgroundColor: "#f7f7f7",
+    fontSize: 16,
+    marginRight: 10,
   },
   sendButton: {
-    backgroundColor: "#386F48",
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    backgroundColor: "#4CAF50",
+    borderRadius: 25,
+    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  sendButtonText: {
+  sendButtonIcon: {
     color: "#fff",
+    fontSize: 20,
   },
-  typingIndicator: {
-    fontStyle: "italic",
-    color: "#555",
-    textAlign: "center",
-    marginBottom: 10,
+  iconContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 5,
+  },
+  icon: {
+    fontSize: 18,
+    marginHorizontal: 5,
   },
   emojiContainer: {
     flexDirection: "row",
@@ -593,16 +748,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   emoji: {
-    fontSize: 20,
-    marginHorizontal: 5,
-  },
-  iconContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    marginTop: 5,
-  },
-  icon: {
     fontSize: 20,
     marginHorizontal: 5,
   },
@@ -622,12 +767,6 @@ const styles = StyleSheet.create({
   reactionEmoji: {
     fontSize: 16,
   },
-  modifiedText: {
-    fontSize: 12,
-    color: "#777",
-    marginTop: 2,
-    alignSelf: "flex-end",
-  },
   mediaImage: {
     width: 150,
     height: 150,
@@ -635,10 +774,10 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   mediaText: {
-    color: "#386F48",
+    color: "#333",
     fontWeight: "bold",
     textDecorationLine: "underline",
     marginVertical: 5,
   },
 
-});
+}); 

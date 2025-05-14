@@ -20,7 +20,8 @@ export default function Auth(props) {
           onChangeText={(ch) => setEmail(ch)} 
           style={styles.input} 
           placeholder="email@site.com" 
-          placeholderTextColor="#555" 
+          placeholderTextColor="#555"
+          keyboardType="email-address" 
         />
         <TextInput 
           onChangeText={(ch) => setPassword(ch)} 

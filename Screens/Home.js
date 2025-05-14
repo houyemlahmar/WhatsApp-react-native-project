@@ -15,7 +15,7 @@ export default function Home(props) {
     <Tab.Navigator
       initialRouteName="Users"
       shifting={true}
-      activeColor="#16B84E" 
+      activeColor="#D51062" 
       inactiveColor="#888" 
       barStyle={{ backgroundColor: 'rgba(230, 230, 151, 0.3)' }} 
     >

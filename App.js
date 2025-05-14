@@ -26,7 +26,7 @@ export default function App() {
           }} ></Stack.Screen>
         <Stack.Screen name="Chat" component={Chats} options={{headerStyle: { backgroundColor: '#E6E697' }, }}></Stack.Screen>
         <Stack.Screen name="MediaViewer" component={MediaViewer} options={{headerTitle: "Media", headerStyle: { backgroundColor: '#000' }, }}></Stack.Screen>
-
+        <Stack.Screen name="VideoCallScreen" component={VideoCallScreen} />
         <Stack.Screen name="Home" component={Home} options={{headerStyle: { backgroundColor: '#E6E697' }, }}></Stack.Screen>
         <Stack.Screen name="Settings" component={Settings} options={{headerStyle: { backgroundColor: '#E6E697' }, }}></Stack.Screen>
       </Stack.Navigator>

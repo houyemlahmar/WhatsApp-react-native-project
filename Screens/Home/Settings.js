@@ -93,6 +93,20 @@ export default function Setting(props) {
     }
   };
 
+  const validateInputs = () => {
+  if (!pseudo.trim()) {
+    alert("Le pseudo ne peut pas être vide !");
+    return false;
+  }
+
+  if (!numero || numero.length !== 8 || isNaN(numero)) {
+    alert("Le numéro doit contenir exactement 8 chiffres !");
+    return false;
+  }
+
+  return true;
+};
+
   return (
     <ImageBackground
       source={require("../../assets/beigeclaire.jpg")}
@@ -124,11 +138,13 @@ export default function Setting(props) {
 
         <View style={styles.buttonGroup}>
           <TouchableOpacity 
-            style={[styles.customButton, { backgroundColor: "#388E3C" }]}
-            onPress={async() => {
-              const linkImage =await uploadImage(uriImage);
+            style={[styles.customButton, { backgroundColor: "#16B84E" }]}
+            onPress={async () => {
+              if (!validateInputs()) return; // Vérifie les champs avant de continuer
+
+              const linkImage = await uploadImage(uriImage);
               console.log("uri:" + linkImage);
-              const ref_uncompte=ref_listcomptes.child(currentUserId);
+              const ref_uncompte = ref_listcomptes.child(currentUserId);
               ref_uncompte.update({
                 id: currentUserId,
                 pseudo: pseudo,
@@ -137,12 +153,12 @@ export default function Setting(props) {
               });
               alert("Saved successfully ✅");
             }}
-          >
+          > 
             <Text style={styles.buttonText}>Save</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.customButton, { backgroundColor: "#D32F2F" }]}
+            style={[styles.customButton, { backgroundColor: "#C72C48" }]}
             onPress={() => {
               auth.signOut().then(() => {
                 props.navigation.replace("Auth");
@@ -182,7 +198,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#FFB6C1", // rose vif
+    color: "#D51062", // rose vif
     marginBottom: 20,
   },
   avatar: {

@@ -1,4 +1,4 @@
-import { useEffect,useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
@@ -10,50 +10,35 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons"; // For modern icons
 import firebase from "../../Config";
 
-
-const database= firebase.database();
-const ref_database=database.ref(); 
-const ref_listcomptes=ref_database.child("ListComptes");
-
+const database = firebase.database();
+const ref_database = database.ref();
+const ref_listcomptes = ref_database.child("ListComptes");
 
 export default function ListUsers(props) {
   const currentUserId = props.route.params.currentUserId;
 
-  
-  const [data, setdata] = useState([]);   // setdata taatiha en parametre tableau ekhyr w taaml rerender lil interface
-  //rerender lezem setdata 
-  
-  
-  //recuperer les données
-      
-  useEffect(() => {
-  //First: code à exécuter lors du render
-              ref_listcomptes.on("value", (snapshot) => {
-                  var d = []; //yaabi d bel fonction
-                  snapshot.forEach(un_compte => {
-                      if (un_compte.val().id != currentUserId) {
-                          d.push(un_compte.val());
-                      }
-                  });
-                  console.log(d);
-                  setdata(d); //affiche les donnees w yaawed yjib les données
-              });
-  
-              return () => {   // code à la fin du render 
-                  ref_listcomptes.off();
-              }
-          }, []
-  //third: condition du rerender :
-  //cas [] (tab vide )=> il va exec first une sseul fois 
-  //cas [x]=> exec first lors de la modification de x 
-  //cas " "(vide): mayaaml chy maandouch condition d'arret
-      )
-  
-      //once : lancer marra bark k tlansi prgm mteek //ref_listComptes.once();
+  const [data, setdata] = useState([]);
 
-  
+  useEffect(() => {
+    ref_listcomptes.on("value", (snapshot) => {
+      const d = [];
+      snapshot.forEach((un_compte) => {
+        if (un_compte.val().id !== currentUserId) {
+          d.push(un_compte.val());
+        }
+      });
+      console.log(d);
+      setdata(d);
+    });
+
+    return () => {
+      ref_listcomptes.off();
+    };
+  }, []);
+
   return (
     <ImageBackground
       source={require("../../assets/beigeclaire.jpg")}
@@ -65,66 +50,51 @@ export default function ListUsers(props) {
         data={data}
         renderItem={({ item }) => {
           return (
-            <View
-              key={item.id} // Pass the key directly here
-              style={{
-                flexDirection: "row",
-                borderBottomWidth: 1,
-                borderBottomColor: "black",
-                padding: 10,
-                margin: 5,
-                borderRadius: 10,
-                backgroundColor: "rgba(255, 255, 255, 0.7)",
-              }}
-            >
+            <View style={styles.card}>
+              <Image
+                source={item.urlimage ? { uri: item.urlimage } : require("../../assets/profile.jpg")}
+                style={styles.profileImage}
+              />
+              <View style={styles.textContainer}>
+                <Text style={styles.pseudo}>{item.pseudo}</Text>
+                <View style={styles.callContainer}>
+                  <MaterialIcons name="phone" size={18} color="#4CAF50" />
+                  <Text
+                    style={styles.numero}
+                    onPress={() => {
+                      if (Platform.OS === "android") {
+                        Linking.openURL("tel:" + item.numero);
+                      } else {
+                        Linking.openURL("telprompt:" + item.numero);
+                      }
+                    }}
+                  >
+                    {item.numero}
+                  </Text>
+                </View>
+              </View>
+              <View
+                style={[
+                  styles.statusIndicator,
+                  { backgroundColor: item.connected ? "#4CAF50" : "#C72C48" },
+                ]}
+              />
               <TouchableOpacity
+                style={styles.chatButton}
                 onPress={() => {
                   props.navigation.navigate("Chat", {
-                    currentuserid: currentUserId, 
-                    secondid: item.id, // the id of the selected user
+                    currentuserid: currentUserId,
+                    secondid: item.id,
                   });
                 }}
               >
-                <Image
-                source={item.urlimage ? {uri:item.urlimage} :require("../../assets/profile.jpg")}
-                            
-                  style={{
-                    width: 50,
-                    height: 50,
-                    backgroundColor: "#0052",
-                    borderRadius: 40,
-                    marginRight: 10,
-                  }}
-                />
-
-        <Text>{item.pseudo}</Text>
-
-        <Text
-          onPress={() => {
-            if (Platform.OS === "android") {
-              Linking.openURL("tel:" + item.numero);
-            } else {
-              Linking.openURL("telprompt:" + item.numero);
-            }
-          }}
-        >
-          {item.numero}
-        </Text>
-        <View 
-        style={[
-            styles.statusIndicator,
-            { backgroundColor: item.connected ? "#4CAF50" : "#808080" },
-          ]}
-        />
-        </TouchableOpacity>
-      </View>
-    );
-  }}
-  style={{
-    width: "90%",
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
-  }}
-/>
+                <MaterialIcons name="chat" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          );
+        }}
+        style={styles.flatList}
+      />
     </ImageBackground>
   );
 }
@@ -134,45 +104,35 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#F5F5F5",
   },
   title: {
     fontSize: 32,
-    color: "#11A",
+    color: "#D51062",
     fontWeight: "bold",
+    marginVertical: 20,
   },
   flatList: {
     width: "95%",
   },
-  listItem: {
+  card: {
     flexDirection: "row",
     alignItems: "center",
-    
-    backgroundColor: "rgba(255, 255, 255, 0.8)", // Fond légèrement transparent
+    backgroundColor: "#fff",
     padding: 15,
     marginVertical: 8,
-    borderRadius: 10,
+    borderRadius: 15,
     shadowColor: "#000",
-  
-  },
-  imageContainer: {
-    position: "relative", 
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5, // For Android shadow
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     marginRight: 15,
-  },
-  statusIndicator: {
-    width: 16,
-    height: 16,
-    borderRadius: 10,
-    top: 4,
-    right: 20,
-    borderWidth: 2,
-    borderColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
   },
   textContainer: {
     flex: 1,
@@ -180,7 +140,7 @@ const styles = StyleSheet.create({
   pseudo: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#00008B",
+    color: "#333",
   },
   callContainer: {
     flexDirection: "row",
@@ -189,22 +149,24 @@ const styles = StyleSheet.create({
   },
   numero: {
     fontSize: 16,
-    color: "#00008B",
-    
+    color: "#4CAF50",
+    marginLeft: 5,
   },
-  buttonContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  callButton: {
-    backgroundColor: "#E0E0E0",
-    padding: 12,
-    borderRadius: 50,
-    marginRight: 10, // Espacement entre le bouton d'appel et de chat
+  statusIndicator: {
+    width: 18,
+    height: 18,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#fff",
+    position: "absolute",
+    top: 15,
+    left: 62,
   },
   chatButton: {
     backgroundColor: "#4CAF50",
     padding: 10,
-    borderRadius: 8,
+    borderRadius: 50,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

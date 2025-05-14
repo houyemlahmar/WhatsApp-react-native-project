@@ -34,18 +34,19 @@ export default function NewAccount(props) {
           style={styles.input}
           placeholder="email@site.com"
           placeholderTextColor="#555"
+          keyboardType="email-address"
         />
         <TextInput
           onChangeText={(ch) => setPassword(ch)}
           style={styles.input}
-          placeholder="Mot de passe"
+          placeholder="Password"
           placeholderTextColor="#555"
           secureTextEntry
         />
         <TextInput
           onChangeText={(ch) => setConfirmPassword(ch)}
           style={styles.input}
-          placeholder="Confirmer mot de passe"
+          placeholder="confirm Password"
           placeholderTextColor="#555"
           secureTextEntry
         />
